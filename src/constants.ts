@@ -1,10 +1,4 @@
 import {initializeConfig, predefined} from "@ckb-lumos/config-manager";
-import {getSecp256k1Account} from "@ckb-lumos/e2e-test/src/utils";
-import {AddressType} from "@ckb-lumos/hd";
-import {RPC} from "@ckb-lumos/rpc";
-import {Indexer} from "@ckb-lumos/ckb-indexer";
-import {E2EProvider} from "@ckb-lumos/e2e-test/src/e2eProvider";
-import {FileFaucetQueue} from "@ckb-lumos/e2e-test/src/faucetQueue";
 
 export const CKB_HOST = `127.0.0.1`;
 export const CKB_RPC_PORT = 8114;
