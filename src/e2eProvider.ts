@@ -89,7 +89,7 @@ export class E2EProvider {
       SECP256K1_BLAKE160_MULTISIG: {
         CODE_HASH: '0x5c5069eb0857efc65e1bca0c07df34c31663b3622fd3876c876320fc9634e2a8',
         HASH_TYPE: 'type',
-        TX_HASH: secp256k1DepTxHash,
+        TX_HASH: secp256k1DepTxHash!,
         INDEX: '0x1',
         DEP_TYPE: 'depGroup',
         SHORT_ID: 1

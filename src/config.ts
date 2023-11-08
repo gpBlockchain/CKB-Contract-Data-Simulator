@@ -1,8 +1,8 @@
 import {RPC} from "@ckb-lumos/rpc";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
-import {E2EProvider} from "@ckb-lumos/e2e-test/src/e2eProvider";
 import {FileFaucetQueue} from "@ckb-lumos/e2e-test/src/faucetQueue";
 import {CKB_MAIN_NET_RPC_URL, CKB_RPC_URL, CKB_TEST_NET_RPC_URL} from "./constants";
+import {E2EProvider} from "./e2eProvider";
 
 export const rpc = new RPC(CKB_RPC_URL);
 export const indexer = new Indexer(CKB_RPC_URL);

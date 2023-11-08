@@ -1,4 +1,4 @@
-import {generateRandomPrivateKey, randomSecp256k1Account} from "../src/utils";
+import { randomSecp256k1Account} from "../src/utils";
 import {CKB_RPC_URL, GENESIS_CELL_PRIVATEKEYS} from "../src/constants";
 import {RPC} from "@ckb-lumos/rpc";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
