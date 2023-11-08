@@ -46,10 +46,4 @@ describe('SUDT', function () {
         }
     })
 
-    it("mainnet ",async ()=>{
-        console.log('ret')
-        const ret = await e2eMainNetProvider.rpc.getTransaction("0x0b1381b2baa4a0dc9403ddb9b8d44383e754da71dd0b72edcebe83a219f43cb6")
-        console.log(JSON.stringify(ret))
-    })
-
 });

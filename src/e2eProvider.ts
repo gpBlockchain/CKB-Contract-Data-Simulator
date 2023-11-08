@@ -5,7 +5,7 @@ import {
   Cell,
   TransactionWithStatus,
   Block,
-  Script, HashType,
+  Script, HashType, OutPoint,
 } from "@ckb-lumos/base";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
 import {
@@ -225,6 +225,7 @@ export class E2EProvider {
   }
 
   // wait for the epoch to greater than or equal to a given value
+  //FIXME use generate_epoch rpc method
   public async waitForEpoch(options: {
     relative: boolean;
     value: number;
@@ -322,8 +323,71 @@ export class E2EProvider {
     return this.rpc.sendTransaction(tx, "passthrough");
   }
 
-  public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number, account: Account) {
-    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], 1000);
+  public async getCellByOutPoint(outpoint: OutPoint): Promise<Cell> {
+    const tx = await this.rpc.getTransaction(outpoint.txHash)
+    console.log("[debug]:", tx)
+    if (!tx) {
+      throw new Error(`not found tx: ${outpoint.txHash}`)
+    }
+    console.log("[debug]:", tx.txStatus.blockHash!)
+    const block = await this.rpc.getBlock(tx.txStatus.blockHash!)
+
+    return {
+      cellOutput: tx.transaction.outputs[0],
+      data: tx.transaction.outputsData[0],
+      outPoint: outpoint,
+      blockHash: tx.txStatus.blockHash,
+      blockNumber: block!.header.number,
+    }
+  }
+
+  public async daoWithdraw(fromPk: HexString, depositOutpoint: OutPoint):Promise<string> {
+    const from = randomSecp256k1Account(fromPk);
+    const depositCell = await this.getCellByOutPoint(depositOutpoint);
+    let txSkeleton = TransactionSkeleton({cellProvider: this.indexer});
+
+    txSkeleton = await dao.withdraw(
+        txSkeleton,
+        depositCell,
+        from.address
+    );
+
+    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [from.address], 1000);
+
+    txSkeleton = common.prepareSigningEntries(txSkeleton);
+    const message = txSkeleton.get("signingEntries").get(0)?.message;
+    const Sig = key.signRecoverable(message!, from.privKey);
+    const tx = sealTransaction(txSkeleton, [Sig]);
+
+    return this.rpc.sendTransaction(tx, "passthrough");
+  }
+
+  public async daoUnlock(fromPk: HexString, depositOutpoint: OutPoint, withdrawOutpoint: OutPoint):Promise<string> {
+    const from = randomSecp256k1Account(fromPk);
+    const depositCell = await this.getCellByOutPoint(depositOutpoint);
+    const withdrawCell = await this.getCellByOutPoint(withdrawOutpoint);
+    let txSkeleton = TransactionSkeleton({cellProvider: this.indexer});
+
+    txSkeleton = await dao.unlock(
+        txSkeleton,
+        depositCell,
+        withdrawCell,
+        from.address,
+        from.privKey
+    );
+
+    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [from.address], 1000);
+
+    txSkeleton = common.prepareSigningEntries(txSkeleton);
+    const message = txSkeleton.get("signingEntries").get(0)?.message;
+    const Sig = key.signRecoverable(message!, from.privKey);
+    const tx = sealTransaction(txSkeleton, [Sig]);
+
+    return this.rpc.sendTransaction(tx, "passthrough");
+  }
+
+  public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number = 1000, account: Account) {
+    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], fee);
     txSkeleton = common.prepareSigningEntries(txSkeleton);
     const message = txSkeleton.get("signingEntries").get(0)?.message;
     const Sig = key.signRecoverable(message!, account.privKey);

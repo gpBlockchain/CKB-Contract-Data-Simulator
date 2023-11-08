@@ -17,6 +17,6 @@ npm run test:e2e
 
 clean env 
 ```shell
-rm tmp 
+rm -rf tmp 
 rm lumos.json
 ```
