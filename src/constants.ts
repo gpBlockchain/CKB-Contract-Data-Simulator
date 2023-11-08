@@ -3,7 +3,6 @@ import {initializeConfig, predefined} from "@ckb-lumos/config-manager";
 export const CKB_HOST = `127.0.0.1`;
 export const CKB_RPC_PORT = 8114;
 
-export const LIGHT_CLIENT_RPC_PORT = 9000;
 
 export const CKB_RPC_URL = `http://${CKB_HOST}:${CKB_RPC_PORT}`;
 

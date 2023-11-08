@@ -5,34 +5,48 @@ import {
   Cell,
   TransactionWithStatus,
   Block,
-  Script,
+  Script, HashType,
 } from "@ckb-lumos/base";
-import { Indexer } from "@ckb-lumos/ckb-indexer";
+import {Indexer} from "@ckb-lumos/ckb-indexer";
 import {
   CKBIndexerQueryOptions,
   OtherQueryOptions,
 } from "@ckb-lumos/ckb-indexer/lib/type";
-import { common, dao } from "@ckb-lumos/common-scripts";
+import {common, dao, deploy} from "@ckb-lumos/common-scripts";
+import {bytes} from "@ckb-lumos/codec";
+import {Buffer} from 'buffer';
+
 import {
   TransactionSkeleton,
   parseAddress,
   sealTransaction,
-  encodeToAddress,
+  encodeToAddress, TransactionSkeletonType,
 } from "@ckb-lumos/helpers";
-import { key } from "@ckb-lumos/hd";
+import {key} from "@ckb-lumos/hd";
 import {
   ScriptConfigs,
   createConfig,
   Config,
   predefined,
-  initializeConfig,
+  initializeConfig, getConfig, ScriptConfig,
 } from "@ckb-lumos/config-manager";
-import { RPC } from "@ckb-lumos/rpc";
-import { BI, BIish } from "@ckb-lumos/bi";
-import { asyncSleep, randomSecp256k1Account } from "./utils";
-import { FaucetQueue } from "./faucetQueue";
+import {RPC} from "@ckb-lumos/rpc";
+import {BI, BIish} from "@ckb-lumos/bi";
+import {Account, asyncSleep, randomSecp256k1Account} from "./utils";
+import {FaucetQueue} from "./faucetQueue";
+import {readFileSync, writeFileSync} from "fs";
+import * as fs from 'fs';
+import {LUMOS_CONFIG_PATH} from "./constants";
+
 
 type LockScriptLike = Address | Script;
+
+export enum DeployType {
+  data,
+  typeId,
+  data2
+}
+
 export class E2EProvider {
   readonly pollIntervalMs: number;
   public indexer: Indexer;
@@ -45,7 +59,7 @@ export class E2EProvider {
     pollIntervalMs?: number;
     faucetQueue: FaucetQueue;
   }) {
-    const { indexer, rpc, faucetQueue, pollIntervalMs = 1000 } = options;
+    const {indexer, rpc, faucetQueue, pollIntervalMs = 1000} = options;
 
     this.indexer = indexer;
     this.rpc = rpc;
@@ -72,7 +86,7 @@ export class E2EProvider {
         INDEX: "0x0",
         DEP_TYPE: "depGroup",
       },
-      SECP256K1_BLAKE160_MULTISIG:{
+      SECP256K1_BLAKE160_MULTISIG: {
         CODE_HASH: '0x5c5069eb0857efc65e1bca0c07df34c31663b3622fd3876c876320fc9634e2a8',
         HASH_TYPE: 'type',
         TX_HASH: secp256k1DepTxHash,
@@ -91,8 +105,12 @@ export class E2EProvider {
   }
 
   public async loadLocalConfig(): Promise<Config> {
+    if (checkFileExists(LUMOS_CONFIG_PATH)) {
+      console.log("config exist")
+      initializeConfig(this.getLocalConfig())
+      return getConfig()
+    }
     const _genesisConfig = await this.getGenesisScriptConfig();
-
     const CONFIG = createConfig({
       PREFIX: "ckt",
       SCRIPTS: {
@@ -100,17 +118,30 @@ export class E2EProvider {
         ..._genesisConfig,
       },
     });
-
     initializeConfig(CONFIG);
+    writeFileSync(LUMOS_CONFIG_PATH, JSON.stringify(CONFIG))
     return CONFIG;
   }
+
+  public updateConfigFile(scriptKey: string, script: ScriptConfig) {
+    let configMap = this.getLocalConfig()
+    configMap["SCRIPTS"][scriptKey] = script
+    writeFileSync(LUMOS_CONFIG_PATH, JSON.stringify(configMap))
+    initializeConfig(configMap)
+  }
+  public  getLocalConfig(){
+    let config = readFileSync(LUMOS_CONFIG_PATH, "utf-8")
+    let configMap = JSON.parse(config)
+    return configMap
+  }
+
 
   public async claimCKB(options: {
     claimer: LockScriptLike;
     amount?: BI;
   }): Promise<string> {
-    const { claimer, amount = BI.from(1000 * 10 ** 8) } = options;
-    const { value: idlePk, onRelease } = await this.faucetQueue.pop();
+    const {claimer, amount = BI.from(1000 * 10 ** 8)} = options;
+    const {value: idlePk, onRelease} = await this.faucetQueue.pop();
 
     try {
       const txHash = await this.transferCKB({
@@ -132,12 +163,12 @@ export class E2EProvider {
 
   // wait for transaction status to be committed
   public async waitTransactionCommitted(
-    txHash: string,
-    options: {
-      timeout?: number;
-    } = {}
+      txHash: string,
+      options: {
+        timeout?: number;
+      } = {}
   ): Promise<TransactionWithStatus> {
-    const { timeout = 60 * 1000 } = options;
+    const {timeout = 60 * 1000} = options;
 
     let tx = await this.rpc.getTransaction(txHash);
     if (!tx) {
@@ -146,9 +177,9 @@ export class E2EProvider {
 
     let duration = 0;
     while (
-      tx.txStatus.status === "pending" ||
-      tx.txStatus.status === "proposed"
-    ) {
+        tx.txStatus.status === "pending" ||
+        tx.txStatus.status === "proposed"
+        ) {
       if (duration > timeout) {
         throw new Error(`wait transaction committed timeout ${txHash}`);
       }
@@ -178,10 +209,10 @@ export class E2EProvider {
     relative: boolean;
     value: number;
   }): Promise<void> {
-    const { relative, value } = options;
+    const {relative, value} = options;
 
     const getCurrentBlock = async () =>
-      parseInt(await this.rpc.getTipBlockNumber());
+        parseInt(await this.rpc.getTipBlockNumber());
 
     let currentBlockNumber = await getCurrentBlock();
 
@@ -198,10 +229,10 @@ export class E2EProvider {
     relative: boolean;
     value: number;
   }): Promise<void> {
-    const { relative, value } = options;
+    const {relative, value} = options;
 
     const getCurrentepoch = async () =>
-      parseInt((await this.rpc.getCurrentEpoch()).number);
+        parseInt((await this.rpc.getCurrentEpoch()).number);
 
     let currentEpochNumber = await getCurrentepoch();
 
@@ -220,14 +251,14 @@ export class E2EProvider {
   }
 
   public async getCapacities(address: Address): Promise<BI> {
-    const cells = await this.findCells({ lock: parseAddress(address) });
+    const cells = await this.findCells({lock: parseAddress(address)});
 
     return cells.reduce((a, b) => a.add(b.cellOutput.capacity), BI.from(0));
   }
 
   public async findCells(
-    queries: CKBIndexerQueryOptions,
-    otherQueryOptions?: OtherQueryOptions
+      queries: CKBIndexerQueryOptions,
+      otherQueryOptions?: OtherQueryOptions
   ): Promise<Cell[]> {
     const cellCollector = this.indexer.collector(queries, otherQueryOptions);
 
@@ -246,13 +277,13 @@ export class E2EProvider {
   }): Promise<string> {
     const from = randomSecp256k1Account(options.fromPk);
 
-    let txSkeleton = TransactionSkeleton({ cellProvider: this.indexer });
+    let txSkeleton = TransactionSkeleton({cellProvider: this.indexer});
 
     txSkeleton = await common.transfer(
-      txSkeleton,
-      [from.address],
-      options.to,
-      options.amount
+        txSkeleton,
+        [from.address],
+        options.to,
+        options.amount
     );
 
     txSkeleton = await common.payFeeByFeeRate(txSkeleton, [from.address], 1000);
@@ -269,16 +300,16 @@ export class E2EProvider {
     fromPk: HexString;
     amount?: BIish;
   }): Promise<string> {
-    const { fromPk, amount = BI.from(1000 * 10 ** 8) } = options;
+    const {fromPk, amount = BI.from(1000 * 10 ** 8)} = options;
     const from = randomSecp256k1Account(fromPk);
 
-    let txSkeleton = TransactionSkeleton({ cellProvider: this.indexer });
+    let txSkeleton = TransactionSkeleton({cellProvider: this.indexer});
 
     txSkeleton = await dao.deposit(
-      txSkeleton,
-      from.address,
-      from.address,
-      amount
+        txSkeleton,
+        from.address,
+        from.address,
+        amount
     );
 
     txSkeleton = await common.payFeeByFeeRate(txSkeleton, [from.address], 1000);
@@ -289,5 +320,130 @@ export class E2EProvider {
     const tx = sealTransaction(txSkeleton, [Sig]);
 
     return this.rpc.sendTransaction(tx, "passthrough");
+  }
+
+  public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number, account: Account) {
+    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], 1000);
+    txSkeleton = common.prepareSigningEntries(txSkeleton);
+    const message = txSkeleton.get("signingEntries").get(0)?.message;
+    const Sig = key.signRecoverable(message!, account.privKey);
+    const tx = sealTransaction(txSkeleton, [Sig]);
+    return this.rpc.sendTransaction(tx, "passthrough");
+  }
+
+  public async deployContract(options: {
+    account: Account,
+    contractName: string,
+    contractPath: string,
+    deployType: HashType
+  }) {
+    const contractBuffer = readFileSync(options.contractPath);
+    console.log("contract length:", contractBuffer.length)
+    let deployResult: {
+      txSkeleton: TransactionSkeletonType;
+      scriptConfig: ScriptConfig;
+    };
+
+    // switch (options.deployType) {
+    if (options.deployType == "type") {
+      deployResult = await deploy.generateDeployWithTypeIdTx(
+          {
+            cellProvider: this.indexer,
+            scriptBinary: contractBuffer,
+            fromInfo: options.account.address,
+          });
+      deployResult.scriptConfig.HASH_TYPE = options.deployType
+      console.log(deployResult.scriptConfig.TX_HASH)
+      this.updateConfigFile(options.contractName, deployResult.scriptConfig)
+    } else if (options.deployType == "data" || options.deployType == "data1" || options.deployType == "data2") {
+      deployResult = await deploy.generateDeployWithDataTx(
+          {
+            cellProvider: this.indexer,
+            scriptBinary: contractBuffer,
+            fromInfo: options.account.address,
+          });
+      deployResult.scriptConfig.HASH_TYPE = options.deployType
+      console.log(deployResult.scriptConfig.TX_HASH)
+      this.updateConfigFile(options.contractName, deployResult.scriptConfig)
+    } else {
+      throw new Error("not support")
+    }
+
+
+    // @ts-ignore
+    let txSkeleton = common.prepareSigningEntries(deployResult.txSkeleton);
+    const message = txSkeleton.get("signingEntries").get(0)?.message;
+    const Sig = key.signRecoverable(message!, options.account.privKey);
+    const tx = sealTransaction(txSkeleton, [Sig]);
+    let tx_hash = await this.rpc.sendTransaction(tx, "passthrough");
+    console.log('deploy hash:', tx_hash)
+    return tx_hash
+  }
+
+  public async getDeployScriptConfig(txHash: string, outputIndex: number, deployType: HashType): Promise<ScriptConfig> {
+    // todo get txHash
+    // get
+    const tx = await this.rpc.getTransaction(txHash)
+    switch (deployType) {
+      case "data" || "data1" || "data2":
+        const data = tx.transaction.outputsData[outputIndex];
+        let codeHash1 = utils.ckbHash(bytes.bytify(data));
+
+        return {
+          CODE_HASH: codeHash1,
+          HASH_TYPE: deployType,
+          TX_HASH: txHash,
+          INDEX: "0x0",
+          DEP_TYPE: "code",
+        };
+      case "type":
+
+        // @ts-ignore
+        let codeHash = utils.computeScriptHash(tx.transaction.outputs[outputIndex].type);
+        return {
+          CODE_HASH: codeHash,
+          HASH_TYPE: deployType,
+          TX_HASH: txHash,
+          INDEX: BI.from(outputIndex).toHexString(),
+          DEP_TYPE: "code",
+        }
+    }
+    throw new Error("not support ")
+  }
+
+  public async saveChainContract(txHash: string, outputIndex: number, decPath: string) {
+    const tx = await this.rpc.getTransaction(txHash)
+    let data = tx.transaction.outputsData[outputIndex].replace("0x", "");
+    const buffer = Buffer.from(data, 'hex');
+    writeFileSync(decPath, buffer)
+  }
+
+}
+
+export function hexToUint8Array(hexInput: Buffer) {
+  let hex = hexInput.toString();  // 将输入转换为十六进制字符串
+  console.log('hex:', hex)
+  // 确保 hex 字符串的长度是偶数
+  if (hex.length % 2 != 0) {
+    hex = '0' + hex;
+  }
+
+  let bytes = [];
+
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes.push(parseInt(hex.substr(i, 2), 16));
+  }
+
+  return new Uint8Array(bytes);
+}
+
+
+function checkFileExists(filePath: string): boolean {
+  try {
+    // 使用 fs.accessSync 来检查文件是否存在
+    fs.accessSync(filePath, fs.constants.F_OK);
+    return true;
+  } catch (error) {
+    return false;
   }
 }

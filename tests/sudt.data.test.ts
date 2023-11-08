@@ -1,5 +1,4 @@
-import {e2eProvider} from "../src/config";
-import {getSecp256k1Account} from "@ckb-lumos/e2e-test/src/utils";
+import {e2eMainNetProvider, e2eProvider} from "../src/config";
 import {MNEMONIC} from "../src/constants";
 import {AddressType} from "@ckb-lumos/hd";
 import {BI} from "@ckb-lumos/bi";
@@ -7,6 +6,7 @@ import {sudt} from "@ckb-lumos/common-scripts";
 import {TransactionSkeleton} from "@ckb-lumos/helpers";
 import {utils} from "@ckb-lumos/base";
 import {getConfig} from "@ckb-lumos/config-manager";
+import {getSecp256k1Account} from "../src/utils";
 
 
 const alice = getSecp256k1Account(MNEMONIC, AddressType.Change, 1);
@@ -44,6 +44,12 @@ describe('SUDT', function () {
             }, BI.from(0)).toBigInt();
             console.log("account sudt  balance:", balance)
         }
+    })
+
+    it("mainnet ",async ()=>{
+        console.log('ret')
+        const ret = await e2eMainNetProvider.rpc.getTransaction("0x0b1381b2baa4a0dc9403ddb9b8d44383e754da71dd0b72edcebe83a219f43cb6")
+        console.log(JSON.stringify(ret))
     })
 
 });

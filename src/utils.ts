@@ -1,7 +1,7 @@
 import { Script } from "@ckb-lumos/base";
 import { encodeToAddress } from "@ckb-lumos/helpers";
 import { randomBytes } from "crypto";
-import { key } from "@ckb-lumos/hd";
+import {AddressType, ExtendedPrivateKey, key, mnemonic} from "@ckb-lumos/hd";
 import { getConfig } from "@ckb-lumos/config-manager";
 import { hexify } from "@ckb-lumos/codec/lib/bytes";
 
@@ -46,3 +46,10 @@ export const randomSecp256k1Account = (privKey?: string): Account => {
     privKey: _privKey,
   };
 };
+
+export const getSecp256k1Account = (mm: string, type: AddressType, index: number): Account => {
+  const seed = mnemonic.mnemonicToSeedSync(mm)
+  const extendedPrivateKey = ExtendedPrivateKey.fromSeed(seed)
+  let priv = extendedPrivateKey.privateKeyInfo(AddressType.Change, index)
+  return randomSecp256k1Account(priv.privateKey)
+}
