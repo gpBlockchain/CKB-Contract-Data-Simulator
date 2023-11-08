@@ -35,8 +35,8 @@ import { FaucetQueue } from "./faucetQueue";
 type LockScriptLike = Address | Script;
 export class E2EProvider {
   readonly pollIntervalMs: number;
-  protected indexer: Indexer;
-  protected rpc: RPC;
+  public indexer: Indexer;
+  public rpc: RPC;
   protected faucetQueue: FaucetQueue;
 
   constructor(options: {

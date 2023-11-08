@@ -2,10 +2,9 @@ import {generateRandomPrivateKey, randomSecp256k1Account} from "../src/utils";
 import {CKB_RPC_URL, GENESIS_CELL_PRIVATEKEYS} from "../src/constants";
 import {RPC} from "@ckb-lumos/rpc";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
-import {E2EProvider} from "@ckb-lumos/e2e-test/src/e2eProvider";
-import {FileFaucetQueue} from "@ckb-lumos/e2e-test/src/faucetQueue";
 import {BI} from "@ckb-lumos/bi";
-import {e2eProvider} from "../src/config";
+import {E2EProvider} from "../src/e2eProvider";
+import {FileFaucetQueue} from "../src/faucetQueue";
 
 async function main() {
     console.log("---main---")
