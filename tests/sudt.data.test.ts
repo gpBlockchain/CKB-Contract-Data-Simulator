@@ -243,15 +243,4 @@ describe('SUDT', function () {
         }
     })
 
-    it("ddd",async ()=>{
-        for (let i = 0; i < 5; i++) {
-            let addr2 = getSecp256k1Account(MNEMONIC, AddressType.Change, i)
-            console.log(addr2)
-            let addr1 = getSecp256k1Account(MNEMONIC2, AddressType.Change, i)
-            console.log(addr1)
-
-        }
-    })
-
-
 });
