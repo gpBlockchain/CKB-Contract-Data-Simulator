@@ -11,19 +11,19 @@ import {unpackAmount} from "@ckb-lumos/common-scripts/lib/sudt";
 
 describe('SUDT', function () {
 
-    // beforeAll(async () => {
-    //     for (let i = 0; i < 5; i++) {
-    //         await e2eProvider.claimCKB({
-    //             claimer: getSecp256k1Account(MNEMONIC, AddressType.Change, i).address,
-    //             amount: BI.from(1000 * 10 ** 8)
-    //         });
-    //         await e2eProvider.claimCKB({
-    //             claimer: getSecp256k1Account(MNEMONIC2, AddressType.Change, i).address,
-    //             amount: BI.from(1000 * 10 ** 8)
-    //         });
-    //
-    //     }
-    // })
+    beforeAll(async () => {
+        for (let i = 0; i < 5; i++) {
+            await e2eProvider.claimCKB({
+                claimer: getSecp256k1Account(MNEMONIC, AddressType.Change, i).address,
+                amount: BI.from(1000 * 10 ** 8)
+            });
+            await e2eProvider.claimCKB({
+                claimer: getSecp256k1Account(MNEMONIC2, AddressType.Change, i).address,
+                amount: BI.from(1000 * 10 ** 8)
+            });
+
+        }
+    })
 
     it("issue  simple udt", async () => {
         let issue_test_list = [
