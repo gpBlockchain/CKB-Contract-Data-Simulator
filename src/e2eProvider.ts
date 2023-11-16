@@ -6,13 +6,19 @@ import {
     TransactionWithStatus,
     Block,
     Script, HashType, OutPoint, Output,
+
 } from "@ckb-lumos/base";
+import {
+  helpers,
+  WitnessArgs,
+  hd,
+} from "@ckb-lumos/lumos";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
 import {
   CKBIndexerQueryOptions,
   OtherQueryOptions,
 } from "@ckb-lumos/ckb-indexer/lib/type";
-import {common, dao, deploy} from "@ckb-lumos/common-scripts";
+import {common, dao, deploy, MultisigScript, parseFromInfo} from "@ckb-lumos/common-scripts";
 import {bytes} from "@ckb-lumos/codec";
 import {Buffer} from 'buffer';
 import {helpers} from "@ckb-lumos/lumos";
@@ -33,11 +39,14 @@ import {
 } from "@ckb-lumos/config-manager";
 import {RPC} from "@ckb-lumos/rpc";
 import {BI, BIish} from "@ckb-lumos/bi";
-import {Account, asyncSleep, randomSecp256k1Account} from "./utils";
+import {Account, AccountMulti, asyncSleep, Options, randomSecp256k1Account} from "./utils";
 import {FaucetQueue} from "./faucetQueue";
 import {readFileSync, writeFileSync} from "fs";
 import * as fs from 'fs';
 import {LUMOS_CONFIG_PATH} from "./constants";
+import {ScriptValue} from "@ckb-lumos/base/lib/values";
+import {AGGRON4} from "../lumos/examples/secp256k1-transfer/lib";
+import {e2eProvider} from "./config";
 
 
 type LockScriptLike = Address | Script;
@@ -386,6 +395,140 @@ export class E2EProvider {
 
     return this.rpc.sendTransaction(tx, "passthrough");
   }
+
+
+  public async generateAccountFromMultisigInfo(fromInfo: MultisigScript): Promise<AccountMulti> {
+    let LocalConfig = await getConfig();
+    const {fromScript, multisigScript} = parseFromInfo(fromInfo, {
+      config: LocalConfig,
+    });
+    return {
+      fromScript,
+      multisigScript,
+    };
+  }
+
+  public async multisigTransfer(options: Options, multiAccountCapacity: BIish, fee: BIish): Promise<string>{
+    let txSkeleton = helpers.TransactionSkeleton({cellProvider: this.indexer});
+    let LocalConfig = await getConfig();
+    const { fromScript, multisigScript } = await this.generateAccountFromMultisigInfo(options.fromInfo);
+    await this.claimCKB({claimer: fromScript, amount: BI.from(multiAccountCapacity)});
+    const toScript = helpers.parseAddress(options.toAddress, { config: LocalConfig });
+    const neededCapacity = BI.from(options.amount).add(fee); //additional ckb for tx fee
+    let collectedSum = BI.from(0);
+    const collected: Cell[] = [];
+    const collector = this.indexer.collector({ lock: fromScript, type: "empty" });
+    for await (const cell of collector.collect()) {
+      collectedSum = collectedSum.add(cell.cellOutput.capacity);
+      collected.push(cell);
+      if (collectedSum >= neededCapacity) break;
+    }
+
+    if (collectedSum < neededCapacity) {
+      console.log(`debug ${collectedSum}, ${neededCapacity}`)
+      throw new Error("Not enough CKB");
+    }
+
+    const transferOutput: Cell = {
+      cellOutput: {
+        capacity: BI.from(options.amount).toHexString(),
+        lock: toScript,
+      },
+      data: "0x",
+    };
+
+    const changeOutput: Cell = {
+      cellOutput: {
+        capacity: collectedSum.sub(neededCapacity).toHexString(),
+        lock: fromScript,
+      },
+      data: "0x",
+    };
+
+    txSkeleton = txSkeleton.update("inputs", (inputs) => inputs.push(...collected));
+    txSkeleton = txSkeleton.update("outputs", (outputs) => outputs.push(transferOutput, changeOutput));
+    txSkeleton = txSkeleton.update("cellDeps", (cellDeps) =>
+        cellDeps.push(<CellDep>{
+          outPoint: {
+            txHash: LocalConfig.SCRIPTS.SECP256K1_BLAKE160_MULTISIG?.TX_HASH,
+            index: LocalConfig.SCRIPTS.SECP256K1_BLAKE160_MULTISIG?.INDEX,
+          },
+          depType: LocalConfig.SCRIPTS.SECP256K1_BLAKE160_MULTISIG?.DEP_TYPE,
+        })
+    );
+
+    const firstIndex = txSkeleton
+        .get("inputs")
+        .findIndex((input) =>
+            new ScriptValue(input.cellOutput.lock, { validate: false }).equals(
+                new ScriptValue(fromScript, { validate: false })
+            )
+        );
+    if (firstIndex !== -1) {
+      while (firstIndex >= txSkeleton.get("witnesses").size) {
+        txSkeleton = txSkeleton.update("witnesses", (witnesses) => witnesses.push("0x"));
+      }
+      let witness: string = txSkeleton.get("witnesses").get(firstIndex)!;
+      let newWitnessArgs: WitnessArgs;
+      const SECP_SIGNATURE_PLACEHOLDER =
+          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
+      newWitnessArgs = {
+        lock: "0x" + multisigScript!.slice(2) + SECP_SIGNATURE_PLACEHOLDER.slice(2).repeat(options.fromInfo.M),
+      };
+
+      if (witness !== "0x") {
+        const witnessArgs = blockchain.WitnessArgs.unpack(bytes.bytify(witness))
+        const lock = witnessArgs.lock;
+        if (!!lock && !!newWitnessArgs.lock && !bytes.equal(lock, newWitnessArgs.lock)) {
+          throw new Error("Lock field in first witness is set aside for signature!");
+        }
+        const inputType = witnessArgs.inputType;
+        if (!!inputType) {
+          newWitnessArgs.inputType = inputType;
+        }
+        const outputType = witnessArgs.outputType;
+        if (!!outputType) {
+          newWitnessArgs.outputType = outputType;
+        }
+      }
+      witness = bytes.hexify(blockchain.WitnessArgs.pack(newWitnessArgs))
+      txSkeleton = txSkeleton.update("witnesses", (witnesses) => witnesses.set(firstIndex, witness));
+    }
+
+    txSkeleton = common.prepareSigningEntries(txSkeleton);
+    const message = txSkeleton.get("signingEntries").get(0)?.message;
+
+    let pubkeyHashN: string = "";
+    options.fromInfo.publicKeyHashes.forEach((publicKeyHash) => {
+      pubkeyHashN += publicKeyHash.slice(2);
+    });
+
+    let sigs: string = "";
+    options.privKeys.forEach((privKey) => {
+      if (privKey !== "") {
+        let sig = hd.key.signRecoverable(message!, privKey);
+        sig = sig.slice(2);
+        sigs += sig;
+      }
+    });
+
+    sigs =
+        "0x00" +
+        ("00" + options.fromInfo.R.toString(16)).slice(-2) +
+        ("00" + options.fromInfo.M.toString(16)).slice(-2) +
+        ("00" + options.fromInfo.publicKeyHashes.length.toString(16)).slice(-2) +
+        pubkeyHashN +
+        sigs;
+
+    const tx = helpers.sealTransaction(txSkeleton, [sigs]);
+    const hash = await this.rpc.sendTransaction(tx, "passthrough");
+    console.log("The transaction hash is", hash);
+
+    return hash;
+
+  }
+
 
     public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number = 1000, account: Account) {
         txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], fee);
