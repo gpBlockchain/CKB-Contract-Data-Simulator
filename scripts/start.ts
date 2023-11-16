@@ -52,7 +52,7 @@ async function main() {
   });
   console.log("modify epoch_duration_target");
   const specs_dev_path =  'specs/dev.toml';
-  const modify_epoch_duration_target_command = `sed -ie  's/epoch_duration_target = 14400/epoch_duration_target = 8/g' ${specs_dev_path}`;
+  const modify_epoch_duration_target_command = `sed -ie  's/epoch_duration_target = 14400/epoch_duration_target = 80/g' ${specs_dev_path}`;
   const child = spawn(modify_epoch_duration_target_command, {shell: true, cwd: CKB_CWD});
   child.on('close', (code) => {
     if (code === 0) {

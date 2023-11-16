@@ -13,6 +13,8 @@ export const CKB_TEST_NET_RPC_URL = "https://testnet.ckbapp.dev/";
 export const LUMOS_CONFIG_PATH = "lumos.json"
 
 export const MNEMONIC = "brush scan basic know movie next time soccer speak loop balcony describe"
+export const MNEMONIC2 = "equip slim poem depth struggle tonight define stool brave sustain spy cabbage"
+
 // from docker/ckb/dev.toml [[genesis.system_cells]]
 initializeConfig(predefined.AGGRON4);
 

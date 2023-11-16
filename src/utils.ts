@@ -69,9 +69,45 @@ export const randomSecp256k1Account = (privKey?: string): Account => {
   };
 };
 
+export const randomAnyOneCanPayAccount = (privKey?: string): Account => {
+    const _privKey = (() => {
+        if (privKey) {
+            return privKey;
+        }
+
+        return generateRandomPrivateKey();
+    })();
+
+    const pubKey = key.privateToPublic(_privKey);
+    const args = key.publicKeyToBlake160(pubKey);
+    const template = getConfig().SCRIPTS["ANYONE_CAN_PAY"]!;
+    const lockScript = {
+        codeHash: template.CODE_HASH,
+        hashType: template.HASH_TYPE,
+        args: args,
+    };
+
+    const address = encodeToAddress(lockScript);
+
+    return {
+        lockScript,
+        address,
+        pubKey,
+        privKey: _privKey,
+    };
+};
+
+
 export const getSecp256k1Account = (mm: string, type: AddressType, index: number): Account => {
-  const seed = mnemonic.mnemonicToSeedSync(mm)
-  const extendedPrivateKey = ExtendedPrivateKey.fromSeed(seed)
-  let priv = extendedPrivateKey.privateKeyInfo(AddressType.Change, index)
-  return randomSecp256k1Account(priv.privateKey)
+    const seed = mnemonic.mnemonicToSeedSync(mm)
+    const extendedPrivateKey = ExtendedPrivateKey.fromSeed(seed)
+    let priv = extendedPrivateKey.privateKeyInfo(type, index)
+    return randomSecp256k1Account(priv.privateKey)
+}
+
+export const getAnyOneCanPayAccount = (mm: string, type: AddressType, index: number): Account => {
+    const seed = mnemonic.mnemonicToSeedSync(mm)
+    const extendedPrivateKey = ExtendedPrivateKey.fromSeed(seed)
+    let priv = extendedPrivateKey.privateKeyInfo(type, index)
+    return randomAnyOneCanPayAccount(priv.privateKey)
 }

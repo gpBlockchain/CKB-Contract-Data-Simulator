@@ -1,11 +1,12 @@
 import {
-  HexString,
-  Address,
-  utils,
-  Cell,
-  TransactionWithStatus,
-  Block,
-  Script, HashType, OutPoint, values, blockchain, CellDep
+    HexString,
+    Address,
+    utils,
+    Cell,
+    TransactionWithStatus,
+    Block,
+    Script, HashType, OutPoint, Output,
+
 } from "@ckb-lumos/base";
 import {
   helpers,
@@ -20,6 +21,7 @@ import {
 import {common, dao, deploy, MultisigScript, parseFromInfo} from "@ckb-lumos/common-scripts";
 import {bytes} from "@ckb-lumos/codec";
 import {Buffer} from 'buffer';
+import {helpers} from "@ckb-lumos/lumos";
 
 import {
   TransactionSkeleton,
@@ -528,14 +530,18 @@ export class E2EProvider {
   }
 
 
-  public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number = 1000, account: Account) {
-    txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], fee);
-    txSkeleton = common.prepareSigningEntries(txSkeleton);
-    const message = txSkeleton.get("signingEntries").get(0)?.message;
-    const Sig = key.signRecoverable(message!, account.privKey);
-    const tx = sealTransaction(txSkeleton, [Sig]);
-    return this.rpc.sendTransaction(tx, "passthrough");
-  }
+    public async sendAndSignTxSkeleton(txSkeleton: TransactionSkeletonType, fee: number = 1000, account: Account) {
+        txSkeleton = await common.payFeeByFeeRate(txSkeleton, [account.address], fee);
+        txSkeleton = common.prepareSigningEntries(txSkeleton);
+        let sigs = []
+        for (let i = 0; i < txSkeleton.get("signingEntries").size; i++) {
+            let message = txSkeleton.get("signingEntries").get(i)?.message;
+            let Sig = key.signRecoverable(message!, account.privKey);
+            sigs.push(Sig)
+        }
+        let tx = sealTransaction(txSkeleton, sigs);
+        return this.rpc.sendTransaction(tx, "passthrough");
+    }
 
   public async deployContract(options: {
     account: Account,
@@ -624,6 +630,26 @@ export class E2EProvider {
     writeFileSync(decPath, buffer)
   }
 
+    public async getTransactionDetail(txHash: string) {
+        let transaction = await this.rpc.getTransaction(txHash)
+        let ret = `${txHash}\n`
+        for (let i = 0; i < transaction.transaction.inputs.length; i++) {
+            let input = transaction.transaction.inputs[i]
+            let cell = await this.getCellByTransactionHashAndIdx(input.previousOutput.txHash, BI.from(input.previousOutput.index).toNumber())
+            ret += `inputIdx:${i} address:${helpers.encodeToAddress(cell.lock)} cap:${BI.from(cell.capacity).toNumber()}\n`
+        }
+        ret += "\n"
+        transaction.transaction.outputs.forEach((output, idx) => {
+            ret += `outIdx:${idx} address:${helpers.encodeToAddress(output.lock)} cap:${BI.from(output.capacity).toNumber()}\n`
+        })
+        return ret
+    }
+
+    async getCellByTransactionHashAndIdx(hash: string, idx: number): Promise<Output> {
+        return await this.rpc.getTransaction(hash)
+            .then((tx) => tx.transaction.outputs[idx])
+    }
+
 }
 
 export function hexToUint8Array(hexInput: Buffer) {
@@ -645,11 +671,11 @@ export function hexToUint8Array(hexInput: Buffer) {
 
 
 function checkFileExists(filePath: string): boolean {
-  try {
-    // 使用 fs.accessSync 来检查文件是否存在
-    fs.accessSync(filePath, fs.constants.F_OK);
-    return true;
-  } catch (error) {
-    return false;
-  }
+    try {
+        // 使用 fs.accessSync 来检查文件是否存在
+        fs.accessSync(filePath, fs.constants.F_OK);
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
