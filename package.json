@@ -8,6 +8,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:start": "npx ts-node scripts/start.ts",
     "test:deploy":"npx ts-node scripts/deploy.ts",
+    "test:claim_ckb": "npx ts-node scripts/claim_ckb.ts",
     "test:e2e": "jest tests/*.data.test.ts",
     "test:stop": "npx ts-node scripts/stop.ts"
   },
