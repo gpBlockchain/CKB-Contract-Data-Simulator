@@ -16,6 +16,7 @@ export function asyncSleep(ms: number): Promise<unknown> {
 
 export interface Account {
   lockScript: Script;
+  anyOneCanPayLockScript:Script;
   address: string;
   pubKey: string;
   privKey: string;
@@ -59,10 +60,19 @@ export const randomSecp256k1Account = (privKey?: string): Account => {
     args: args,
   };
 
+  const temp = getConfig().SCRIPTS["ANYONE_CAN_PAY"]!;
+  const anyOneCanPayLockScript = {
+    codeHash :temp.CODE_HASH,
+    hashType: temp.HASH_TYPE,
+    args:args,
+
+  }
+
   const address = encodeToAddress(lockScript);
 
   return {
     lockScript,
+    anyOneCanPayLockScript,
     address,
     pubKey,
     privKey: _privKey,

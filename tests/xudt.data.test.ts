@@ -55,14 +55,11 @@ describe('xudt', function () {
         let from = alice
         let owner = alice
 
-        // let to = bob.anyOneCanPayLockScript
-        let to :Script = {
-            codeHash: from.lockScript.codeHash,
-            hashType: 'type',
-            args: '0x322f9daf5a5bab5df3fa8b55aae819ed253af3c9'
-        }
+        let to = bob.anyOneCanPayLockScript
+
+
         // mint
-        let mintTxSkeleton = await mint(owner, 100000000, e2eProvider.indexer)
+        let mintTxSkeleton = await mint(owner, 99999, e2eProvider.indexer)
         let mintTxHash = await e2eProvider.sendAndSignTxSkeleton(mintTxSkeleton, 1000, owner)
         await e2eProvider.waitTransactionCommitted(mintTxHash)
         // transfer
