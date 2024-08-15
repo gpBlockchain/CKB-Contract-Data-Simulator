@@ -9,7 +9,8 @@
     "test:start": "npx ts-node scripts/start.ts",
     "test:deploy":"npx ts-node scripts/deploy.ts",
     "test:e2e": "jest tests/*.data.test.ts",
-    "test:stop": "npx ts-node scripts/stop.ts"
+    "test:stop": "npx ts-node scripts/stop.ts",
+    "test:download_contract": "npx ts-node scripts/download.contract.ts"
   },
   "workspaces": [
     "./lumos/packages/*"

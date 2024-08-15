@@ -1,4 +1,4 @@
-import { randomSecp256k1Account} from "../src/utils";
+import {randomSecp256k1Account} from "../src/utils";
 import {CKB_RPC_URL, GENESIS_CELL_PRIVATEKEYS} from "../src/constants";
 import {RPC} from "@ckb-lumos/rpc";
 import {Indexer} from "@ckb-lumos/ckb-indexer";
@@ -59,6 +59,10 @@ async function main() {
             contractName: "SUDT",
             contractPath: "source/contracts/SUDT"
         },
+        {
+            contractName: "XUDT",
+            contractPath: "source/contracts/XUDT"
+        }
     ]
     for (let i = 0; i < deployContractList.length; i++) {
         let account = randomSecp256k1Account()
@@ -76,11 +80,11 @@ async function main() {
         })
         await e2eProvider.waitTransactionCommitted(tx)
         let ret = await e2eProvider.rpc.getTransaction(tx)
-        console.log("contract name:",deployContract.contractName," hash",tx)
+        console.log("contract name:", deployContract.contractName, " hash", tx)
     }
     console.log("deploy successful")
     console.log("generate lumos config file path:lumos.json")
-    console.log("tip number:",await e2eProvider.rpc.getTipBlockNumber())
+    console.log("tip number:", await e2eProvider.rpc.getTipBlockNumber())
 }
 
 main();
