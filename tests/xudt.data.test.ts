@@ -1,7 +1,7 @@
 import {issueSUDT} from "../lumos/examples/exchange-sudt-for-ckb/src/lib";
 import {addressToScript, cellHelper, TransactionSkeleton, TransactionSkeletonType} from "@ckb-lumos/helpers";
 import {computeScriptHash} from "@ckb-lumos/lumos/utils";
-import {Account, getSecp256k1Account} from "../src/utils";
+import {Account, getAnyOneCanPayLockScript, getSecp256k1Account} from "../src/utils";
 import {MNEMONIC} from "../src/constants";
 import {AddressType} from "@ckb-lumos/hd";
 import {bytes, Uint128} from "@ckb-lumos/lumos/codec";
@@ -21,6 +21,10 @@ const candy = getSecp256k1Account(MNEMONIC, AddressType.Change, 3);
 
 
 describe('xudt', function () {
+
+    beforeEach(async () => {
+
+    })
     it("mint", async () => {
         console.log("demo")
         let account = alice;
@@ -28,12 +32,11 @@ describe('xudt', function () {
         let txHash = await e2eProvider.sendAndSignTxSkeleton(txSkeleton, 1000, account)
         await e2eProvider.waitTransactionCommitted(txHash)
     })
-    it("quert id",async ()=>{
+    it("quert id", async () => {
         let owner = alice.lockScript;
-       let script =  getXudtTypeScript(owner)
+        let script = getXudtTypeScript(owner)
         console.log(script)
     })
-
 
 
     it("transfer", async () => {
@@ -51,13 +54,11 @@ describe('xudt', function () {
         await e2eProvider.waitTransactionCommitted(txHash)
     })
 
-    it("transfer to any can pay",async ()=>{
+    it("transfer to any can pay", async () => {
+
         let from = alice
         let owner = alice
-
-        let to = bob.anyOneCanPayLockScript
-
-
+        let to = getAnyOneCanPayLockScript(bob)
         // mint
         let mintTxSkeleton = await mint(owner, 99999, e2eProvider.indexer)
         let mintTxHash = await e2eProvider.sendAndSignTxSkeleton(mintTxSkeleton, 1000, owner)
