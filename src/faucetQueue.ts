@@ -1,4 +1,4 @@
-import { writeFileSync, existsSync, rmSync } from "fs";
+import { writeFileSync, existsSync, rmSync, mkdirSync } from "fs";
 import { join } from "path";
 import { asyncSleep } from "./utils";
 import { GENESIS_CELL_PRIVATEKEYS } from "./constants";
@@ -21,6 +21,7 @@ export class FileFaucetQueue implements FaucetQueue {
     private dirPath: string,
     private keys: Array<string> = GENESIS_CELL_PRIVATEKEYS
   ) {
+    mkdirSync(this.dirPath, { recursive: true });
     this.keys.map((key) => this._releaseKey(key));
   }
 
