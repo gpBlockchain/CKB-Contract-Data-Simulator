@@ -43,7 +43,6 @@ import {readFileSync, writeFileSync} from "fs";
 import * as fs from 'fs';
 import {LUMOS_CONFIG_PATH} from "./constants";
 import {ScriptValue} from "@ckb-lumos/base/lib/values";
-import {AGGRON4} from "../lumos/examples/secp256k1-transfer/lib";
 import {e2eProvider} from "./config";
 
 
@@ -591,7 +590,9 @@ export class E2EProvider {
     // get
     const tx = await this.rpc.getTransaction(txHash)
     switch (deployType) {
-      case "data" || "data1" || "data2":
+      case "data":
+      case "data1":
+      case "data2":
         const data = tx.transaction.outputsData[outputIndex];
         let codeHash1 = utils.ckbHash(bytes.bytify(data));
 
